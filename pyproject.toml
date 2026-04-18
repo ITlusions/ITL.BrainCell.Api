@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "itl-braincell-api"
+version = "0.1.0"
+description = "BrainCell REST API service"
+requires-python = ">=3.12"
+dependencies = [
+    "itl-braincell",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
