@@ -11,6 +11,15 @@ on:
   push:
     tags:
       - "v[0-9]*.[0-9]*.[0-9]*"            # v1.2.3 and v1.2.3-rc.1 / -beta.1 / -alpha.1
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to release (e.g. v0.1.1)"
+        required: true
+        type: string
+
+env:
+  RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
 
 jobs:
   docker:
@@ -18,8 +27,8 @@ jobs:
     uses: ITlusions/ITL.Github/.github/workflows/_reusable-docker-build.yml@main
     with:
       image-name: "ghcr.io/itlusions/braincell-api"
-      tag: ${{ github.ref_name }}
-      ref: ${{ github.ref }}
+      tag: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+      ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', inputs.tag) || github.ref }}
     secrets:
       registry-password: ${{ secrets.GH_PAT }}
 
@@ -28,12 +37,12 @@ jobs:
     needs: docker
     uses: ITlusions/ITL.Github/.github/workflows/_reusable-release-gh.yml@main
     with:
-      tag: ${{ github.ref_name }}
+      tag: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
       generate-release-notes: true
       body: |
         ## Docker image
 
         ```
-        docker pull ghcr.io/itlusions/braincell-api:${{ github.ref_name }}
+        docker pull ghcr.io/itlusions/braincell-api:${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
         ```
 
