@@ -38,7 +38,6 @@ jobs:
     uses: ITlusions/ITL.Github/.github/workflows/_reusable-auto-tag.yml@main
     with:
       commit-sha: ${{ github.sha }}
-      release-workflow: "on-tag.yml"
     secrets:
       gh-pat: ${{ secrets.GH_PAT }}
 

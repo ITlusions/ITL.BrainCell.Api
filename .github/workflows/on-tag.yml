@@ -1,48 +1,20 @@
-name: Release pipeline — Tag push
+name: Release — Create GitHub Release
 
 # ---------------------------------------------------------------------------
-# Triggers on semver tag push: v1.2.3 or v1.2.3-rc.1 etc.
-# GitFlow: tags are set on main (stable) or release/* (rc/pre-release).
-#
-# 1. docker  → build + push to GHCR
-# 2. release → GitHub Release with Docker pull instructions
+# Triggered by semver tag push (created by auto-tag on main).
+# Only creates the GitHub Release — Docker build is handled by on-release.yml
+# which triggers automatically when the release is published.
 # ---------------------------------------------------------------------------
 on:
   push:
     tags:
-      - "v[0-9]*.[0-9]*.[0-9]*"            # v1.2.3 and v1.2.3-rc.1 / -beta.1 / -alpha.1
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: "Tag to release (e.g. v0.1.1)"
-        required: true
-        type: string
-
-env:
-  RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+      - "v[0-9]*.[0-9]*.[0-9]*"
 
 jobs:
-  docker:
-    name: Build and push Docker image
-    uses: ITlusions/ITL.Github/.github/workflows/_reusable-docker-build.yml@main
-    with:
-      image-name: "ghcr.io/itlusions/braincell-api"
-      tag: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
-      ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', inputs.tag) || github.ref }}
-    secrets:
-      registry-password: ${{ secrets.GH_PAT }}
-
   release:
     name: GitHub Release
-    needs: docker
     uses: ITlusions/ITL.Github/.github/workflows/_reusable-release-gh.yml@main
     with:
-      tag: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+      tag: ${{ github.ref_name }}
       generate-release-notes: true
-      body: |
-        ## Docker image
-
-        ```
-        docker pull ghcr.io/itlusions/braincell-api:${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
-        ```
 

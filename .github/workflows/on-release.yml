@@ -1,0 +1,24 @@
+name: Release — Build and push Docker image
+
+# ---------------------------------------------------------------------------
+# Triggered automatically when a GitHub Release is published.
+# This fires after on-tag.yml creates the release, completing the pipeline:
+#
+#   push to main → CI → auto-tag → on-tag.yml (creates Release)
+#                                        ↓
+#                               on-release.yml (Docker build + push to GHCR)
+# ---------------------------------------------------------------------------
+on:
+  release:
+    types: [published]
+
+jobs:
+  docker:
+    name: Build and push Docker image
+    uses: ITlusions/ITL.Github/.github/workflows/_reusable-docker-build.yml@main
+    with:
+      image-name: "ghcr.io/itlusions/braincell-api"
+      tag: ${{ github.event.release.tag_name }}
+      ref: ${{ github.event.release.tag_name }}
+    secrets:
+      registry-password: ${{ secrets.GH_PAT }}
