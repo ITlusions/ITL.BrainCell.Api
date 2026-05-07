@@ -2,8 +2,12 @@ name: CI — Branch push
 
 # ---------------------------------------------------------------------------
 # Triggers on GitFlow branches (feature, develop, release, hotfix, main).
-# On main: CI → auto-tag → docker build + push → GitHub Release
-# All steps run in this single workflow — no cross-workflow event chain needed.
+#
+# Every branch:
+#   detect-version → ci (lint + test + docker validate, tagged with version)
+#
+# Only on main push:
+#   → auto-tag → docker build + push → GitHub Release
 # ---------------------------------------------------------------------------
 on:
   push:
@@ -24,16 +28,22 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  detect-version:
+    name: Detect version
+    uses: ITlusions/ITL.Github/.github/workflows/_reusable-detect-version.yml@main
+
   ci:
     name: CI
+    needs: detect-version
     uses: ITlusions/ITL.Github/.github/workflows/_reusable-ci-docker.yml@main
     with:
       image-name: "ghcr.io/itlusions/braincell-api"
       ref: ${{ github.sha }}
+      version: ${{ needs.detect-version.outputs.image-tag }}
 
   auto-tag:
     name: Auto-tag patch release
-    needs: ci
+    needs: [ci, detect-version]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     uses: ITlusions/ITL.Github/.github/workflows/_reusable-auto-tag.yml@main
     with:
