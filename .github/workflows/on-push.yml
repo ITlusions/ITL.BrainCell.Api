@@ -1,13 +1,14 @@
 name: CI — Branch push
 
 # ---------------------------------------------------------------------------
-# Triggers on GitFlow branches (feature, develop, release, hotfix, main).
+# GitFlow pipeline:
 #
-# Every branch:
-#   detect-version → ci (lint + test + docker validate, tagged with version)
-#
-# Only on main push:
-#   → auto-tag → docker build + push → GitHub Release
+#  feature/**  push          → detect-version + ci (validate, no push)
+#  PR feature → develop      → detect-version + ci (validate, no push)
+#  develop     push          → detect-version + ci (validate, no push)
+#  PR develop → main         → detect-version + ci (validate, no push)
+#  main        push (merge)  → detect-version + ci (build+push dev tag)
+#                               → auto-tag → docker (retag to vX.Y.Z) → release
 # ---------------------------------------------------------------------------
 on:
   push:
@@ -40,6 +41,7 @@ jobs:
       image-name: "ghcr.io/itlusions/braincell-api"
       ref: ${{ github.sha }}
       version: ${{ needs.detect-version.outputs.image-tag }}
+      # Only push the image when actually merging to main (not on PRs or feature/develop)
       push: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
       registry-username: ${{ github.actor }}
     secrets:
@@ -56,7 +58,7 @@ jobs:
       gh-pat: ${{ secrets.GH_PAT }}
 
   docker:
-    name: Retag Docker image to release tag
+    name: Retag to release tag
     needs: [ci, auto-tag]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     uses: ITlusions/ITL.Github/.github/workflows/_reusable-docker-retag.yml@main
