@@ -5,9 +5,9 @@ name: CI — Branch push
 #
 #  feature/**  push          → detect-version + ci (validate, no push)
 #  PR feature → develop      → detect-version + ci (validate, no push)
-#  develop     push          → detect-version + ci (validate, no push)
+#  develop     push          → detect-version + ci (build+push dev tag, e.g. 0.1.3-develop.7-abc1234)
 #  PR develop → main         → detect-version + ci (validate, no push)
-#  main        push (merge)  → detect-version + ci (build+push dev tag)
+#  main        push (merge)  → detect-version + ci (build+push clean tag, e.g. 0.1.4)
 #                               → auto-tag → docker (retag to vX.Y.Z) → release
 # ---------------------------------------------------------------------------
 on:
@@ -41,8 +41,8 @@ jobs:
       image-name: "ghcr.io/itlusions/braincell-api"
       ref: ${{ github.sha }}
       version: ${{ needs.detect-version.outputs.image-tag }}
-      # Only push the image when actually merging to main (not on PRs or feature/develop)
-      push: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
+      # Push image on develop (dev tag) and main (release tag) — not on PRs or feature branches
+      push: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') }}
       registry-username: ${{ github.actor }}
     secrets:
       gh-pat: ${{ secrets.GH_PAT }}
