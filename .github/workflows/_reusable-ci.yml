@@ -24,7 +24,7 @@ on:
     secrets:
       GH_PAT:
         description: "PAT voor het ophalen van ITL.BrainCell (cross-repo)"
-        required: true
+        required: false
     outputs:
       docker-digest:
         description: "Image digest van de gebouwde (niet-gepushte) Docker image"

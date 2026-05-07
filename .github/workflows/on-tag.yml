@@ -48,8 +48,7 @@ jobs:
       image-name: ${{ vars.IMAGE_NAME || 'ghcr.io/itlusions/braincell-api' }}
       python-version: "3.12"
       ref: ${{ github.ref }}
-    secrets:
-      GH_PAT: ${{ secrets.GH_PAT }}
+    secrets: inherit
 
   # ------------------------------------------------------------------
   # Stap 2: Publish naar GHCR (alleen als CI geslaagd is)
@@ -62,8 +61,7 @@ jobs:
       image-name: ${{ vars.IMAGE_NAME || 'ghcr.io/itlusions/braincell-api' }}
       version: ${{ needs.prepare.outputs.version }}
       ref: ${{ github.ref }}
-    secrets:
-      GH_PAT: ${{ secrets.GH_PAT }}
+    secrets: inherit
 
   # ------------------------------------------------------------------
   # Stap 3: GitHub Release (alleen als publish geslaagd is)

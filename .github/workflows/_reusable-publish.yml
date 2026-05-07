@@ -22,7 +22,7 @@ on:
     secrets:
       GH_PAT:
         description: "PAT voor het ophalen van ITL.BrainCell en GHCR-push"
-        required: true
+        required: false
 
 jobs:
   publish:
