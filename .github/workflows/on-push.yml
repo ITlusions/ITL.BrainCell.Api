@@ -3,7 +3,8 @@ name: CI — Branch push
 # ---------------------------------------------------------------------------
 # Triggers on GitFlow branches (feature, develop, release, hotfix, main).
 # On main: after a successful CI run, a patch version tag is auto-created.
-# That tag then triggers on-tag.yml → Docker build + push → GitHub Release.
+# That tag triggers on-tag.yml → GitHub Release (published)
+# which in turn triggers on-release.yml → Docker build + push to GHCR.
 # ---------------------------------------------------------------------------
 on:
   push:
