@@ -40,6 +40,10 @@ jobs:
       image-name: "ghcr.io/itlusions/braincell-api"
       ref: ${{ github.sha }}
       version: ${{ needs.detect-version.outputs.image-tag }}
+      push: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
+      registry-username: ${{ github.actor }}
+    secrets:
+      gh-pat: ${{ secrets.GH_PAT }}
 
   auto-tag:
     name: Auto-tag patch release
@@ -52,14 +56,14 @@ jobs:
       gh-pat: ${{ secrets.GH_PAT }}
 
   docker:
-    name: Build and push Docker image
+    name: Retag Docker image to release tag
     needs: [ci, auto-tag]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    uses: ITlusions/ITL.Github/.github/workflows/_reusable-docker-build.yml@main
+    uses: ITlusions/ITL.Github/.github/workflows/_reusable-docker-retag.yml@main
     with:
-      image-name: "ghcr.io/itlusions/braincell-api"
-      tag: ${{ needs.auto-tag.outputs.tag }}
-      ref: ${{ needs.auto-tag.outputs.tag }}
+      source-image: ${{ needs.ci.outputs.image-tag }}
+      target-image: "ghcr.io/itlusions/braincell-api"
+      target-tag: ${{ needs.auto-tag.outputs.tag }}
     secrets:
       registry-password: ${{ secrets.GH_PAT }}
 
