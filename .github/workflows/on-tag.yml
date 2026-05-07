@@ -20,10 +20,6 @@ jobs:
       image-name: "ghcr.io/itlusions/braincell-api"
       tag: ${{ github.ref_name }}
       ref: ${{ github.ref }}
-      checkout-path: "ITL.BrainCell.Api"
-      dependency-repo: "ITlusions/ITL.BrainCell"
-      dependency-path: "ITL.BrainCell"
-      dependency-ref: ${{ vars.BRAINCELL_CORE_REF || 'main' }}
     secrets:
       registry-password: ${{ secrets.GH_PAT }}
 

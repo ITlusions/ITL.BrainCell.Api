@@ -1,13 +1,13 @@
 # Dockerfile for BrainCell REST API Service
-# Build context must be D:\repos\ (parent of all ITL.BrainCell* repos)
+# Build context: repo root (ITL.BrainCell.Api/)
+# itl-braincell core library is installed from PyPI.
 FROM python:3.12-alpine AS builder
 
 WORKDIR /build
 
 RUN apk add --no-cache build-base postgresql-dev
 
-COPY ITL.BrainCell/requirements.txt .
-RUN pip install --no-cache-dir --target ./python-packages -r requirements.txt
+RUN pip install --no-cache-dir --target ./python-packages itl-braincell
 
 # ========== Runtime Stage ==========
 FROM python:3.12-alpine
@@ -18,20 +18,17 @@ RUN apk add --no-cache postgresql-client curl
 
 COPY --from=builder /build/python-packages /usr/local/lib/python3.12/site-packages
 
-# Copy shared core from ITL.BrainCell
-COPY ITL.BrainCell/src/core src/core
-COPY ITL.BrainCell/src/cells src/cells
-COPY ITL.BrainCell/src/services src/services
-
 # Copy API-specific code
-COPY ITL.BrainCell.Api/src/api src/api
-COPY ITL.BrainCell.Api/src/main.py src/main.py
-COPY ITL.BrainCell.Api/src/__init__.py src/__init__.py
+COPY src/api src/api
+COPY src/main.py src/main.py
+COPY src/__init__.py src/__init__.py
 
 # Copy Alembic configuration and migrations
-COPY ITL.BrainCell/alembic.ini .
-COPY ITL.BrainCell/alembic alembic
-COPY ITL.BrainCell/docker-entrypoint.sh /usr/local/bin/
+COPY alembic.ini .
+COPY alembic alembic
+
+# Copy entrypoint
+COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 RUN addgroup braincell && adduser -D -G braincell braincell && \

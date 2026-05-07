@@ -30,12 +30,6 @@ jobs:
     with:
       image-name: "ghcr.io/itlusions/braincell-api"
       ref: ${{ github.sha }}
-      checkout-path: "ITL.BrainCell.Api"
-      dependency-repo: "ITlusions/ITL.BrainCell"
-      dependency-path: "ITL.BrainCell"
-      dependency-ref: ${{ vars.BRAINCELL_CORE_REF || 'main' }}
-    secrets:
-      gh-pat: ${{ secrets.GH_PAT }}
 
   auto-tag:
     name: Auto-tag patch release
