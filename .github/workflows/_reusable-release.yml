@@ -1,0 +1,97 @@
+name: Release (reusable)
+
+# ---------------------------------------------------------------------------
+# Reusable workflow: maak een GitHub Release aan
+# - Stable release (v1.2.3)  → prerelease: false
+# - Pre-release  (v1.2.3-rc.1 / -beta.1 / -alpha.1) → prerelease: true
+# ---------------------------------------------------------------------------
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: "Semver versie (zonder 'v'-prefix), bijv. 1.2.3 of 1.2.3-rc.1"
+        required: true
+        type: string
+      image-name:
+        description: "Gepubliceerde GHCR image naam (voor release notes)"
+        required: true
+        type: string
+      ref:
+        description: "Git ref (tag) waarop de release gebaseerd is"
+        required: true
+        type: string
+
+jobs:
+  release:
+    name: GitHub Release
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      # ------------------------------------------------------------------
+      # 1. Detecteer of dit een pre-release is
+      #    Pre-release als versie een suffix bevat: -rc, -beta, -alpha, e.d.
+      # ------------------------------------------------------------------
+      - name: Detecteer release type
+        id: release-type
+        run: |
+          VERSION="${{ inputs.version }}"
+          if echo "$VERSION" | grep -qE '-(alpha|beta|rc)\.' ; then
+            echo "prerelease=true" >> $GITHUB_OUTPUT
+            echo "release_type=Pre-release" >> $GITHUB_OUTPUT
+          else
+            echo "prerelease=false" >> $GITHUB_OUTPUT
+            echo "release_type=Stable release" >> $GITHUB_OUTPUT
+          fi
+
+      # ------------------------------------------------------------------
+      # 2. Checkout voor release notes generatie
+      # ------------------------------------------------------------------
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          fetch-depth: 0
+
+      # ------------------------------------------------------------------
+      # 3. Maak GitHub Release aan met automatisch gegenereerde release notes
+      # ------------------------------------------------------------------
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ inputs.version }}
+          name: "v${{ inputs.version }}"
+          prerelease: ${{ steps.release-type.outputs.prerelease }}
+          generate_release_notes: true
+          body: |
+            ## ${{ steps.release-type.outputs.release_type }} — v${{ inputs.version }}
+
+            ### Docker image
+
+            ```
+            docker pull ${{ inputs.image-name }}:${{ inputs.version }}
+            ```
+
+            ### Checksums
+
+            Zie de [GHCR package pagina](https://github.com/orgs/ITlusions/packages) voor de image digest.
+
+            ---
+            *Automatisch aangemaakt door de release pipeline*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ------------------------------------------------------------------
+      # 4. Summary
+      # ------------------------------------------------------------------
+      - name: Write job summary
+        run: |
+          echo "## Release aangemaakt" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| | |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Versie** | \`v${{ inputs.version }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Type** | ${{ steps.release-type.outputs.release_type }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Pre-release** | ${{ steps.release-type.outputs.prerelease }} |" >> $GITHUB_STEP_SUMMARY

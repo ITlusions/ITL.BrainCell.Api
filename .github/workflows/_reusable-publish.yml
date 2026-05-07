@@ -1,0 +1,115 @@
+name: Publish (reusable)
+
+# ---------------------------------------------------------------------------
+# Reusable workflow: bouw Docker image en push naar GHCR
+# Alleen aanroepen na een geslaagde CI run (on-tag.yml)
+# ---------------------------------------------------------------------------
+on:
+  workflow_call:
+    inputs:
+      image-name:
+        description: "GHCR image naam zonder tag, bijv. ghcr.io/itlusions/braincell-api"
+        required: true
+        type: string
+      version:
+        description: "Semver versie (zonder 'v'-prefix), bijv. 1.2.3 of 1.2.3-rc.1"
+        required: true
+        type: string
+      ref:
+        description: "Git ref om uit te checken (tag)"
+        required: true
+        type: string
+    secrets:
+      GH_PAT:
+        description: "PAT voor het ophalen van ITL.BrainCell en GHCR-push"
+        required: true
+
+jobs:
+  publish:
+    name: Build & Push GHCR
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      # ------------------------------------------------------------------
+      # 1. Checkouts (zelfde structuur als CI — Docker context vereist dit)
+      # ------------------------------------------------------------------
+      - name: Checkout ITL.BrainCell.Api
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          path: ITL.BrainCell.Api
+
+      - name: Checkout ITL.BrainCell (core)
+        uses: actions/checkout@v4
+        with:
+          repository: ITlusions/ITL.BrainCell
+          token: ${{ secrets.GH_PAT }}
+          path: ITL.BrainCell
+
+      # ------------------------------------------------------------------
+      # 2. Docker Buildx + GHCR login
+      # ------------------------------------------------------------------
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GH_PAT }}
+
+      # ------------------------------------------------------------------
+      # 3. Docker metadata (tags + labels)
+      #    - versie-tag:    ghcr.io/…/braincell-api:1.2.3
+      #    - latest-tag:    ghcr.io/…/braincell-api:latest   (alleen stable)
+      #    - sha-tag:       ghcr.io/…/braincell-api:sha-<hash>
+      # ------------------------------------------------------------------
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ inputs.image-name }}
+          tags: |
+            type=semver,pattern={{version}},value=v${{ inputs.version }}
+            type=semver,pattern={{major}}.{{minor}},value=v${{ inputs.version }}
+            type=sha,format=short
+          labels: |
+            org.opencontainers.image.title=BrainCell API
+            org.opencontainers.image.description=BrainCell REST API service
+            org.opencontainers.image.vendor=ITlusions
+            org.opencontainers.image.version=${{ inputs.version }}
+
+      # ------------------------------------------------------------------
+      # 4. Build & push
+      # ------------------------------------------------------------------
+      - name: Build and push Docker image
+        id: push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ITL.BrainCell.Api/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: true
+          sbom: true
+
+      # ------------------------------------------------------------------
+      # 5. Summary
+      # ------------------------------------------------------------------
+      - name: Write job summary
+        run: |
+          echo "## Docker image gepubliceerd" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| | |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Image** | \`${{ inputs.image-name }}:${{ inputs.version }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Digest** | \`${{ steps.push.outputs.digest }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Tags** | \`${{ steps.meta.outputs.tags }}\` |" >> $GITHUB_STEP_SUMMARY

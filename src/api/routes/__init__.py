@@ -3,7 +3,7 @@ import logging
 
 from fastapi import APIRouter
 
-from . import admin, health, search
+from . import admin, health, search, timeline
 from src.cells import discover_cells
 
 logger = logging.getLogger(__name__)
@@ -16,6 +16,7 @@ def create_routes() -> APIRouter:
     # Core infrastructure routes
     router.include_router(health.router, tags=["health"])
     router.include_router(search.router, prefix="/api/search", tags=["search"])
+    router.include_router(timeline.router, prefix="/api/timeline", tags=["timeline"])
     router.include_router(admin.router, tags=["admin"])
 
     # Auto-discovered MemoryCell routes
