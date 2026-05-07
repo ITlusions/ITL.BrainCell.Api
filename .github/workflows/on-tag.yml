@@ -1,20 +1,22 @@
-name: Release — Create GitHub Release
+name: Release — Create GitHub Release (manual)
 
 # ---------------------------------------------------------------------------
-# Triggered by semver tag push (created by auto-tag on main).
-# Only creates the GitHub Release — Docker build is handled by on-release.yml
-# which triggers automatically when the release is published.
+# Manual fallback: create a GitHub Release for a specific tag.
+# Normal flow: release is created automatically via on-push.yml.
 # ---------------------------------------------------------------------------
 on:
-  push:
-    tags:
-      - "v[0-9]*.[0-9]*.[0-9]*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to release (e.g. v0.1.2)"
+        required: true
+        type: string
 
 jobs:
   release:
     name: GitHub Release
     uses: ITlusions/ITL.Github/.github/workflows/_reusable-release-gh.yml@main
     with:
-      tag: ${{ github.ref_name }}
+      tag: ${{ inputs.tag }}
       generate-release-notes: true
 

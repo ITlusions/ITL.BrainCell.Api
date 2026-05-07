@@ -2,9 +2,8 @@ name: CI — Branch push
 
 # ---------------------------------------------------------------------------
 # Triggers on GitFlow branches (feature, develop, release, hotfix, main).
-# On main: after a successful CI run, a patch version tag is auto-created.
-# That tag triggers on-tag.yml → GitHub Release (published)
-# which in turn triggers on-release.yml → Docker build + push to GHCR.
+# On main: CI → auto-tag → docker build + push → GitHub Release
+# All steps run in this single workflow — no cross-workflow event chain needed.
 # ---------------------------------------------------------------------------
 on:
   push:
@@ -41,4 +40,25 @@ jobs:
       commit-sha: ${{ github.sha }}
     secrets:
       gh-pat: ${{ secrets.GH_PAT }}
+
+  docker:
+    name: Build and push Docker image
+    needs: [ci, auto-tag]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    uses: ITlusions/ITL.Github/.github/workflows/_reusable-docker-build.yml@main
+    with:
+      image-name: "ghcr.io/itlusions/braincell-api"
+      tag: ${{ needs.auto-tag.outputs.tag }}
+      ref: ${{ needs.auto-tag.outputs.tag }}
+    secrets:
+      registry-password: ${{ secrets.GH_PAT }}
+
+  release:
+    name: GitHub Release
+    needs: [docker, auto-tag]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    uses: ITlusions/ITL.Github/.github/workflows/_reusable-release-gh.yml@main
+    with:
+      tag: ${{ needs.auto-tag.outputs.tag }}
+      generate-release-notes: true
 
