@@ -1,76 +1,43 @@
 name: Release pipeline — Tag push
 
 # ---------------------------------------------------------------------------
-# Triggert bij push van een semver tag: v1.2.3 of v1.2.3-rc.1 etc.
-# GitFlow: tags worden gezet op main (stable) of release/* (rc/pre-release)
+# Triggers on semver tag push: v1.2.3 or v1.2.3-rc.1 etc.
+# GitFlow: tags are set on main (stable) or release/* (rc/pre-release).
 #
-# Pipeline volgorde (sequentieel):
-#   1. ci        → lint + test + docker build validate
-#   2. publish   → docker build + push naar GHCR  (alleen na geslaagde CI)
-#   3. release   → GitHub Release aanmaken         (alleen na geslaagde publish)
+# 1. docker  → build + push to GHCR
+# 2. release → GitHub Release with Docker pull instructions
 # ---------------------------------------------------------------------------
 on:
   push:
     tags:
-      - "v[0-9]+.[0-9]+.[0-9]+"           # v1.2.3
-      - "v[0-9]+.[0-9]+.[0-9]+-*"          # v1.2.3-rc.1 / -beta.1 / -alpha.1
-
-env:
-  IMAGE_NAME: ghcr.io/itlusions/braincell-api
+      - "v[0-9]*.[0-9]*.[0-9]*"            # v1.2.3 and v1.2.3-rc.1 / -beta.1 / -alpha.1
 
 jobs:
-  # ------------------------------------------------------------------
-  # Stap 0: Extraheer versie uit de tag (v1.2.3 → 1.2.3)
-  # ------------------------------------------------------------------
-  prepare:
-    name: Prepare versie
-    runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.extract.outputs.version }}
-      ref: ${{ github.ref }}
-    steps:
-      - name: Extraheer versie uit tag
-        id: extract
-        run: |
-          TAG="${{ github.ref_name }}"
-          VERSION="${TAG#v}"
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Tag: $TAG → Versie: $VERSION"
-
-  # ------------------------------------------------------------------
-  # Stap 1: CI (lint + test + docker build validate)
-  # ------------------------------------------------------------------
-  ci:
-    name: CI
-    needs: prepare
-    uses: ./.github/workflows/_reusable-ci.yml
+  docker:
+    name: Build and push Docker image
+    uses: ITlusions/ITL.Github/.github/workflows/_reusable-docker-build.yml@main
     with:
-      image-name: ${{ vars.IMAGE_NAME || 'ghcr.io/itlusions/braincell-api' }}
-      python-version: "3.12"
+      image-name: "ghcr.io/itlusions/braincell-api"
+      tag: ${{ github.ref_name }}
       ref: ${{ github.ref }}
-    secrets: inherit
+      checkout-path: "ITL.BrainCell.Api"
+      dependency-repo: "ITlusions/ITL.BrainCell"
+      dependency-path: "ITL.BrainCell"
+      dependency-ref: ${{ vars.BRAINCELL_CORE_REF || 'main' }}
+    secrets:
+      registry-password: ${{ secrets.GH_PAT }}
 
-  # ------------------------------------------------------------------
-  # Stap 2: Publish naar GHCR (alleen als CI geslaagd is)
-  # ------------------------------------------------------------------
-  publish:
-    name: Publish
-    needs: [prepare, ci]
-    uses: ./.github/workflows/_reusable-publish.yml
-    with:
-      image-name: ${{ vars.IMAGE_NAME || 'ghcr.io/itlusions/braincell-api' }}
-      version: ${{ needs.prepare.outputs.version }}
-      ref: ${{ github.ref }}
-    secrets: inherit
-
-  # ------------------------------------------------------------------
-  # Stap 3: GitHub Release (alleen als publish geslaagd is)
-  # ------------------------------------------------------------------
   release:
-    name: Release
-    needs: [prepare, publish]
-    uses: ./.github/workflows/_reusable-release.yml
+    name: GitHub Release
+    needs: docker
+    uses: ITlusions/ITL.Github/.github/workflows/_reusable-release-gh.yml@main
     with:
-      version: ${{ needs.prepare.outputs.version }}
-      image-name: ${{ vars.IMAGE_NAME || 'ghcr.io/itlusions/braincell-api' }}
-      ref: ${{ github.ref }}
+      tag: ${{ github.ref_name }}
+      generate-release-notes: true
+      body: |
+        ## Docker image
+
+        ```
+        docker pull ghcr.io/itlusions/braincell-api:${{ github.ref_name }}
+        ```
+
